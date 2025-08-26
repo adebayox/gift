@@ -41,7 +41,6 @@ const getProductImage = (merchant, category) => {
     return "";
   }
 
-  // Convert merchant name to lowercase for matching
   const merchantLower = merchant.toLowerCase();
 
   const merchantKey = Object.keys(imageMap).find(
