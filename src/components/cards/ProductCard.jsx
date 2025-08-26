@@ -4,24 +4,20 @@ import { MapPin, CreditCard, Tag } from "lucide-react";
 
 // product card component
 const ProductCard = ({ product }) => {
-
   if (!product) {
     return <div className="bg-gray-200 rounded-lg p-4">Loading...</div>;
   }
 
-  console.log("ProductCard received product:", product); // Debug log
+  //   console.log("product:", product);
 
   return (
     <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
- 
       <div className="relative h-48 bg-gray-200">
-        
         <div className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded-md text-sm font-semibold">
           {product.currency || "USD"} {product.maxPrice || 0}
         </div>
       </div>
 
-      
       <div className="p-4">
         <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
           {product.merchant || "Unknown Merchant"}

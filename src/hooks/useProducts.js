@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../services/api";
 
-// useProduct hook
+// useproduct hook
+
 export const useProducts = () => {
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState(null);
@@ -21,7 +22,13 @@ export const useProducts = () => {
       setLoading(true);
       setError(null);
 
-      const response = await api.getProducts(filters);
+      //   console.log("Fetching products with filters:", filters);
+
+      const response = await api.getProductsWithSearch(filters);
+
+      //   console.log("API response:", response);
+      //   console.log("Products received:", response.products);
+
       setProducts(response.products);
       setPagination(response.pagination);
     } catch (err) {
@@ -36,7 +43,7 @@ export const useProducts = () => {
     setFilters((prevFilters) => ({
       ...prevFilters,
       ...newFilters,
-      // Reset page to 1 when filtering (except when explicitly changing page)
+      // Reset page to 1 when filtering
       page: newFilters.page !== undefined ? newFilters.page : 1,
     }));
   }, []);

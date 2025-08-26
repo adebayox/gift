@@ -1,86 +1,103 @@
-import { privateFetch } from "../utility/fetchFunction";
+import { publicFetch, privateFetch } from "../utility/fetchFunction";
 
-// api service
+const transformProduct = (apiProduct) => {
+  const transformed = {
+    id: apiProduct._id,
+    name: apiProduct.description || `${apiProduct.merchant} Gift Card`,
+    value: apiProduct.maxPrice,
+    description:
+      apiProduct.description ||
+      `${apiProduct.merchant} gift card for ${
+        Array.isArray(apiProduct.country)
+          ? apiProduct.country.join(", ")
+          : apiProduct.country
+      }`,
+    category: Array.isArray(apiProduct.category)
+      ? apiProduct.category[0]
+      : apiProduct.category,
+    image: getProductImage(apiProduct.merchant, apiProduct.category),
+    merchant: apiProduct.merchant,
+    productCode: apiProduct.productCode,
+    country: Array.isArray(apiProduct.country)
+      ? apiProduct.country.join(", ")
+      : apiProduct.country,
+    currency: apiProduct.currency,
+    minPrice: apiProduct.minPrice,
+    maxPrice: apiProduct.maxPrice,
+    denominations: apiProduct.denominations,
+    termsAndConditions: apiProduct.termsAndConditions,
+    redemption: apiProduct.redemption,
+  };
 
-const transformProduct = (apiProduct) => ({
-  id: apiProduct._id,
-  name: apiProduct.description || `${apiProduct.merchant} Gift Card`,
-  value: apiProduct.maxPrice,
-  description:
-    apiProduct.description ||
-    `${apiProduct.merchant} gift card for ${apiProduct.country}`,
-  category: Array.isArray(apiProduct.category)
-    ? apiProduct.category[0]
-    : apiProduct.category,
-  merchant: apiProduct.merchant,
-  productCode: apiProduct.productCode,
-  country: Array.isArray(apiProduct.country)
-    ? apiProduct.country.join(", ")
-    : apiProduct.country,
-  currency: apiProduct.currency,
-  minPrice: apiProduct.minPrice,
-  maxPrice: apiProduct.maxPrice,
-  denominations: apiProduct.denominations,
-  termsAndConditions: apiProduct.termsAndConditions,
-  redemption: apiProduct.redemption,
-});
+  return transformed;
+};
+
+const getProductImage = (merchant, category) => {
+  const imageMap = {};
+
+  const categoryImages = {};
+
+  if (!merchant) {
+    return "";
+  }
+
+  // Convert merchant name to lowercase for matching
+  const merchantLower = merchant.toLowerCase();
+
+  const merchantKey = Object.keys(imageMap).find(
+    (key) => merchantLower.includes(key) || key.includes(merchantLower)
+  );
+
+  if (merchantKey && imageMap[merchantKey]) {
+    return imageMap[merchantKey];
+  }
+
+  if (category) {
+    const categoryLower = Array.isArray(category)
+      ? category[0]?.toLowerCase()
+      : category.toLowerCase();
+
+    const categoryKey = Object.keys(categoryImages).find(
+      (key) => categoryLower.includes(key) || key.includes(categoryLower)
+    );
+
+    if (categoryKey && categoryImages[categoryKey]) {
+      return categoryImages[categoryKey];
+    }
+  }
+};
 
 export const api = {
-  getProducts: async ({
-    search = "",
-    category = "",
-    sortBy = "name",
-    sortOrder = "asc",
-    page = 1,
-    limit = 12,
-  } = {}) => {
+  // Get all products with pagination
+  getProducts: async ({ page = 1, limit = 12 } = {}) => {
     try {
-      const params = {
-        page,
-        limit,
-      };
-
-      if (search) {
-        params.search = search;
-      }
-
-      if (category) {
-        params.category = category;
-      }
-
-      if (sortBy) {
-        params.sortBy = sortBy;
-        params.sortOrder = sortOrder;
-      }
+      console.log("Fetching products - page:", page, "limit:", limit);
 
       const response = await privateFetch.get("/business/products", {
-        params,
+        params: { page, limit },
         headers: {
           "x-api-key": import.meta.env.VITE_API_KEY,
         },
       });
 
-      //   console.log("response:", response.data);
+      console.log("Products API response:", response.data);
 
       if (!response.data || !response.data.products) {
         throw new Error("Invalid API response structure");
       }
 
       const products = response.data.products.map(transformProduct);
-      //   console.log("Transformed products:", products);
-
-      const paginationData = {
-        currentPage: response.data.page || page,
-        totalPages:
-          response.data.totalPages ||
-          Math.ceil((response.data.total || products.length) / limit),
-        totalItems: response.data.total || products.length,
-        itemsPerPage: limit,
-      };
 
       return {
         products: products,
-        pagination: paginationData,
+        pagination: {
+          currentPage: response.data.page || page,
+          totalPages:
+            response.data.totalPages ||
+            Math.ceil((response.data.total || products.length) / limit),
+          totalItems: response.data.total || products.length,
+          itemsPerPage: limit,
+        },
       };
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -88,42 +105,61 @@ export const api = {
     }
   },
 
-  getAllProducts: async () => {
+  searchProducts: async ({
+    merchant = "",
+    category = "",
+    useCase = "",
+    page = 1,
+    limit = 12,
+  } = {}) => {
     try {
-      // Fetch all pages
-      let allProducts = [];
-      let page = 1;
-      let totalPages = 1;
+      console.log("Searching products:", {
+        merchant,
+        category,
+        useCase,
+        page,
+        limit,
+      });
 
-      do {
-        const response = await privateFetch.get("/business/products", {
-          params: { page, limit: 50 }, // Fetch more per page to reduce requests
-          headers: {
-            "x-api-key": import.meta.env.VITE_API_KEY,
-          },
-        });
+      const params = { page, limit };
 
-        if (response.data && response.data.products) {
-          allProducts = [
-            ...allProducts,
-            ...response.data.products.map(transformProduct),
-          ];
-          totalPages = response.data.totalPages || 1;
-          page++;
-        } else {
-          break;
-        }
-      } while (page <= totalPages);
+      if (merchant) params.merchant = merchant;
+      if (category) params.category = category;
+      if (useCase) params.useCase = useCase;
 
-      return allProducts;
+      const response = await privateFetch.get("/business/products/search", {
+        params,
+        headers: {
+          "x-api-key": import.meta.env.VITE_API_KEY,
+        },
+      });
+
+      console.log("Search API response:", response.data);
+
+      if (!response.data || !response.data.products) {
+        throw new Error("Invalid search API response structure");
+      }
+
+      const products = response.data.products.map(transformProduct);
+
+      return {
+        products: products,
+        pagination: {
+          currentPage: response.data.page || page,
+          totalPages:
+            response.data.totalPages ||
+            Math.ceil((response.data.total || products.length) / limit),
+          totalItems: response.data.total || products.length,
+          itemsPerPage: limit,
+        },
+      };
     } catch (error) {
-      console.error("Error fetching all products:", error);
-      throw new Error("Failed to fetch all products");
+      console.error("Error searching products:", error);
+      throw new Error("Failed to search products");
     }
   },
 
-  // Client-side filtering
-  getProductsWithClientFiltering: async ({
+  getProductsWithSearch: async ({
     search = "",
     category = "",
     sortBy = "name",
@@ -132,30 +168,22 @@ export const api = {
     limit = 12,
   } = {}) => {
     try {
-      const allProducts = await api.getAllProducts();
+      let response;
 
-      let filteredProducts = allProducts;
-
-      if (search) {
-        filteredProducts = filteredProducts.filter(
-          (product) =>
-            product.name.toLowerCase().includes(search.toLowerCase()) ||
-            product.description.toLowerCase().includes(search.toLowerCase()) ||
-            product.merchant.toLowerCase().includes(search.toLowerCase())
-        );
-      }
-
-      if (category) {
-        filteredProducts = filteredProducts.filter((product) => {
-          const productCategory = Array.isArray(product.category)
-            ? product.category[0]
-            : product.category;
-          return productCategory === category;
+      if (search || category) {
+        response = await api.searchProducts({
+          merchant: search,
+          category: category,
+          page,
+          limit,
         });
+      } else {
+        response = await api.getProducts({ page, limit });
       }
 
-      // Apply sorting
-      filteredProducts.sort((a, b) => {
+      let products = response.products;
+
+      products.sort((a, b) => {
         let aValue = a[sortBy];
         let bValue = b[sortBy];
 
@@ -176,29 +204,21 @@ export const api = {
         }
       });
 
-      // Apply pagination
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
-
       return {
-        products: paginatedProducts,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(filteredProducts.length / limit),
-          totalItems: filteredProducts.length,
-          itemsPerPage: limit,
-        },
+        products: products,
+        pagination: response.pagination,
       };
     } catch (error) {
-      console.error("Error fetching products with client filtering:", error);
+      console.error("Error fetching products with search:", error);
       throw new Error("Failed to fetch products");
     }
   },
 
+  // Get single product by ID
   getProductById: async (id) => {
     try {
       const response = await privateFetch.get("/business/products", {
+        params: { limit: 50 }, // Get more products to find the one we need
         headers: {
           "x-api-key": import.meta.env.VITE_API_KEY,
         },
@@ -216,26 +236,52 @@ export const api = {
     }
   },
 
-  getCategories: async () => {
+  // Get available filters
+  getFilters: async () => {
     try {
-      const response = await privateFetch.get("/business/products", {
+      console.log("Fetching filters from API");
+
+      const response = await privateFetch.get("/business/products/filters", {
         headers: {
           "x-api-key": import.meta.env.VITE_API_KEY,
         },
       });
 
-      const categories = [];
-      response.data.products.forEach((product) => {
-        if (Array.isArray(product.category)) {
-          categories.push(...product.category);
-        } else if (product.category) {
-          categories.push(product.category);
-        }
-      });
+      console.log("Filters API response:", response.data);
 
-      return [...new Set(categories)].filter(Boolean);
+      return {
+        categories: response.data.categories || [],
+        merchants: response.data.merchants || [],
+        allowedCountries: response.data.allowedCountries || [],
+      };
+    } catch (error) {
+      console.error("Error fetching filters:", error);
+      return {
+        categories: [],
+        merchants: [],
+        allowedCountries: [],
+      };
+    }
+  },
+
+  // Get unique categories
+  getCategories: async () => {
+    try {
+      const filters = await api.getFilters();
+      return filters.categories;
     } catch (error) {
       console.error("Error fetching categories:", error);
+      return [];
+    }
+  },
+
+  // Get unique merchants
+  getMerchants: async () => {
+    try {
+      const filters = await api.getFilters();
+      return filters.merchants;
+    } catch (error) {
+      console.error("Error fetching merchants:", error);
       return [];
     }
   },

@@ -1,33 +1,40 @@
 import { useState, useEffect } from "react";
 import { api } from "../services/api";
 
-// categories hook
 export const useCategories = () => {
   const [categories, setCategories] = useState([]);
+  const [merchants, setMerchants] = useState([]);
+  const [allowedCountries, setAllowedCountries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+//   useCategory hook
+
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchFilters = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const fetchedCategories = await api.getCategories();
-        setCategories(fetchedCategories);
+        const filters = await api.getFilters();
+        setCategories(filters.categories);
+        setMerchants(filters.merchants);
+        setAllowedCountries(filters.allowedCountries);
       } catch (err) {
         setError(err.message);
-        console.error("Error fetching categories:", err);
+        console.error("Error fetching filters:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCategories();
+    fetchFilters();
   }, []);
 
   return {
     categories,
+    merchants,
+    allowedCountries,
     loading,
     error,
   };
