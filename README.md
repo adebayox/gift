@@ -53,9 +53,6 @@ A React frontend application for managing gift cards and rewards products. This 
    
    Navigate to `http://localhost:5173` (or the port shown in your terminal)
 
-## How to Run the Application
-
-## Project Structure
 
 
 ## Approach & Implementation
